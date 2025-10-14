@@ -1,6 +1,7 @@
 package org.eclipse.dataplane;
 
 import io.restassured.http.ContentType;
+import org.eclipse.dataplane.domain.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.Result;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -14,9 +15,15 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.Collections;
+import java.util.Map;
 
 import static io.restassured.RestAssured.given;
 import static org.eclipse.jetty.ee10.servlet.ServletContextHandler.NO_SESSIONS;
+import static org.hamcrest.Matchers.emptyString;
+import static org.hamcrest.Matchers.is;
 
 public class DataplaneTest {
 
@@ -35,19 +42,30 @@ public class DataplaneTest {
 
     @Test
     void shouldPrepareTransfer() {
+        OnPrepare onPrepare = Mockito.mock();
         var dataplane = Dataplane.newInstance()
                 .onPrepare(prepare -> {
                     // do stuff
-                    return new Result<>();
+                    var response = new DataFlowResponseMessage("thisDataplaneId", Collections.emptyMap(), "STATE", "");
+                    return Result.success(response);
                 }).build();
+
         httpServer.deploy(dataplane.controller());
 
         given()
                 .contentType(ContentType.JSON)
                 .port(port)
+                .body(Map.ofEntries(
+                        Map.entry("messageId", "messageId"),
+                        Map.entry("participantId", "participantId")
+                ))
                 .post("/v1/dataflows/prepare")
                 .then()
-                .statusCode(200);
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("dataplaneId", is("thisDataplaneId"))
+                .body("state", is("STATE"))
+                .body("error", emptyString());
     }
 
     private static class HttpServer {
@@ -60,11 +78,11 @@ public class DataplaneTest {
             var connector = new ServerConnector(server);
             connector.setPort(port);
             server.setConnectors(new Connector[] {connector});
+            server.setHandler(servletContextHandler);
         }
 
         public void start() {
             try {
-                server.setHandler(servletContextHandler);
                 server.start();
             } catch (Exception e) {
                 throw new RuntimeException(e);

@@ -11,7 +11,11 @@ public class Dataplane {
     }
 
     public DataPlaneSignalingApiController controller() {
-        return new DataPlaneSignalingApiController();
+        return new DataPlaneSignalingApiController(this);
+    }
+
+    public OnPrepare onPrepare() {
+        return onPrepare;
     }
 
     public static class Builder {
