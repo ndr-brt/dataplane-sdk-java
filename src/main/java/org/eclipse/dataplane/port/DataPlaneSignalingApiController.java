@@ -1,8 +1,10 @@
 package org.eclipse.dataplane.port;
 
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import org.eclipse.dataplane.Dataplane;
 import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
@@ -19,6 +21,12 @@ public class DataPlaneSignalingApiController {
 
     public DataPlaneSignalingApiController(Dataplane dataplane) {
         this.dataplane = dataplane;
+    }
+
+    @GET
+    @Path("/{flowId}/status")
+    public Object status(@PathParam("flowId") String flowId) {
+        return "bau";
     }
 
     @POST

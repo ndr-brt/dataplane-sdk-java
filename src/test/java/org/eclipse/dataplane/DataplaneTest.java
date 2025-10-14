@@ -56,8 +56,9 @@ public class DataplaneTest {
                 .contentType(ContentType.JSON)
                 .port(port)
                 .body(Map.ofEntries(
-                        Map.entry("messageId", "messageId"),
-                        Map.entry("participantId", "participantId")
+                        Map.entry("processId", "theProcessId"),
+                        Map.entry("messageId", "theMessageId"),
+                        Map.entry("participantId", "theParticipantId")
                 ))
                 .post("/v1/dataflows/prepare")
                 .then()
@@ -66,6 +67,12 @@ public class DataplaneTest {
                 .body("dataplaneId", is("thisDataplaneId"))
                 .body("state", is("STATE"))
                 .body("error", emptyString());
+
+        given()
+                .port(port)
+                .get("/v1/dataflows/{id}/status", "theProcessId")
+                .then()
+                .statusCode(200);
     }
 
     private static class HttpServer {
