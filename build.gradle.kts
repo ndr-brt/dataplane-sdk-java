@@ -1,0 +1,28 @@
+plugins {
+    id("java")
+}
+
+group = "org.eclipse.dataplane"
+version = "1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("jakarta.ws.rs:jakarta.ws.rs-api:4.0.0")
+
+    testImplementation("io.rest-assured:rest-assured:5.5.6")
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.eclipse.jetty:jetty-server:12.1.2")
+    testImplementation("org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.2")
+    testImplementation("org.glassfish.jersey.containers:jersey-container-servlet:3.1.11")
+    testImplementation("org.glassfish.jersey.inject:jersey-hk2:3.1.11")
+    testImplementation("org.slf4j:slf4j-simple:2.0.17")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
