@@ -2,27 +2,45 @@ package org.eclipse.dataplane;
 
 import io.restassured.http.ContentType;
 import org.eclipse.dataplane.domain.Result;
-import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.Source;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
+import static org.eclipse.jetty.ee10.servlet.ServletContextHandler.NO_SESSIONS;
 
 public class DataplaneTest {
 
+    private final int port = 8090;
+    private final HttpServer httpServer = new HttpServer(port);
+
+    @BeforeEach
+    void setUp() {
+        httpServer.start();
+    }
+
+    @AfterEach
+    void tearDown() {
+        httpServer.stop();
+    }
+
     @Test
     void shouldPrepareTransfer() {
-        var dataplane = Dataplane.newInstance().onPrepare(prepare -> {
-            // do stuff
-            return new Result<>();
-        }).build();
-        var port = 8090;
-
-        var httpServer = new HttpServer(port);
-        httpServer.start(DataPlaneSignalingApiController.class);
+        var dataplane = Dataplane.newInstance()
+                .onPrepare(prepare -> {
+                    // do stuff
+                    return new Result<>();
+                }).build();
+        httpServer.deploy(dataplane.controller());
 
         given()
                 .contentType(ContentType.JSON)
@@ -30,13 +48,12 @@ public class DataplaneTest {
                 .post("/v1/dataflows/prepare")
                 .then()
                 .statusCode(200);
-
-        httpServer.stop();
     }
 
     private static class HttpServer {
 
         private final Server server;
+        private final ServletContextHandler servletContextHandler = new ServletContextHandler(NO_SESSIONS);
 
         public HttpServer(int port) {
             server = new Server();
@@ -45,17 +62,18 @@ public class DataplaneTest {
             server.setConnectors(new Connector[] {connector});
         }
 
-        public void start(Class<?> controller) {
-            var context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-            var jerseyServlet = context.addServlet(org.glassfish.jersey.servlet.ServletContainer.class, "/*");
-            jerseyServlet.setInitParameter("jersey.config.server.provider.classnames", controller.getCanonicalName());
-
-            server.setHandler(context);
+        public void start() {
             try {
+                server.setHandler(servletContextHandler);
                 server.start();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        public void deploy(Object controller) {
+            var servletHolder = createServletHolder(controller);
+            servletContextHandler.getServletHandler().addServletWithMapping(servletHolder, "/*");
         }
 
         public void stop() {
@@ -64,6 +82,21 @@ public class DataplaneTest {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        private ServletHolder createServletHolder(Object controller) {
+            var resourceConfig = new ResourceConfig();
+            resourceConfig.registerClasses(controller.getClass());
+            resourceConfig.registerInstances(new AbstractBinder() {
+                @Override
+                protected void configure() {
+                    bind(controller).to((Class<? super Object>) controller.getClass());
+                }
+            });
+            var servlet = new ServletContainer(resourceConfig);
+            var servletHolder = new ServletHolder(Source.EMBEDDED);
+            servletHolder.setServlet(servlet);
+            return servletHolder;
         }
     }
 }

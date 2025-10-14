@@ -1,6 +1,6 @@
 package org.eclipse.dataplane;
 
-import java.security.cert.CertPathBuilder;
+import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 
 public class Dataplane {
 
@@ -8,6 +8,10 @@ public class Dataplane {
 
     public static Builder newInstance() {
         return new Builder();
+    }
+
+    public DataPlaneSignalingApiController controller() {
+        return new DataPlaneSignalingApiController();
     }
 
     public static class Builder {
