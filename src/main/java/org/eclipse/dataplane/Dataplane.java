@@ -1,9 +1,9 @@
 package org.eclipse.dataplane;
 
-import org.eclipse.dataplane.domain.DataFlow;
-import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
-import org.eclipse.dataplane.domain.DataFlowResponseMessage;
-import org.eclipse.dataplane.domain.DataFlowStatusResponseMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlow;
+import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;

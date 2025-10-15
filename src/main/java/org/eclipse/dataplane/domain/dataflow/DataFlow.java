@@ -1,4 +1,4 @@
-package org.eclipse.dataplane.domain;
+package org.eclipse.dataplane.domain.dataflow;
 
 import java.util.Objects;
 

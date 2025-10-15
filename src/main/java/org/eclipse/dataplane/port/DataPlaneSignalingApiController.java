@@ -9,9 +9,9 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import org.eclipse.dataplane.Dataplane;
-import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
-import org.eclipse.dataplane.domain.DataFlowResponseMessage;
-import org.eclipse.dataplane.domain.DataFlowStatusResponseMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.port.exception.DataFlowNotFoundException;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
