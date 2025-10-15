@@ -6,6 +6,6 @@ import org.eclipse.dataplane.domain.Result;
 
 public interface OnPrepare {
 
-    Result<DataFlowResponseMessage> action(DataFlowPrepareMessage dataFlowPrepareMessage);
+    Result<Void> action(DataFlowPrepareMessage dataFlowPrepareMessage);
 
 }

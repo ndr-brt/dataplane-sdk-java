@@ -4,6 +4,10 @@ import java.util.function.Function;
 
 public abstract class Result<C> {
 
+    public static Result<Void> success() {
+        return success(null);
+    }
+
     public static <C> Result<C> success(C content) {
         return new Success<>(content);
     }
@@ -24,6 +28,8 @@ public abstract class Result<C> {
     public abstract <X extends Throwable> C orElseThrow(Function<Exception, X> exceptionSupplier) throws X;
 
     public abstract <T> Result<T> map(ExceptionThrowingFunction<C,T> transformValue);
+
+    public abstract <T> Result<T> flatMap(ExceptionThrowingFunction<C, Result<T>> transformValue);
 
     private static class Success<C> extends Result<C> {
 
@@ -47,6 +53,15 @@ public abstract class Result<C> {
         public <T> Result<T> map(ExceptionThrowingFunction<C, T> transformValue) {
             return Result.attempt(() -> transformValue.apply(this.content));
         }
+
+        @Override
+        public <T> Result<T> flatMap(ExceptionThrowingFunction<C, Result<T>> transformValue) {
+            try {
+                return transformValue.apply(this.content);
+            } catch(Exception e) {
+                return Result.failure(e);
+            }
+        }
     }
 
     private static class Failure<C> extends Result<C> {
@@ -68,6 +83,11 @@ public abstract class Result<C> {
 
         @Override
         public <T> Result<T> map(ExceptionThrowingFunction<C, T> transformValue) {
+            return Result.failure(this.exception);
+        }
+
+        @Override
+        public <T> Result<T> flatMap(ExceptionThrowingFunction<C, Result<T>> transformValue) {
             return Result.failure(this.exception);
         }
     }

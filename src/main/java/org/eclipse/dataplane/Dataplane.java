@@ -9,9 +9,13 @@ import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;
 import org.eclipse.dataplane.port.store.InMemoryDataFlowStore;
 
+import java.util.Collections;
+import java.util.UUID;
+
 public class Dataplane {
 
     private final DataFlowStore store = new InMemoryDataFlowStore();
+    private String id;
     private OnPrepare onPrepare;
 
     public static Builder newInstance() {
@@ -24,11 +28,12 @@ public class Dataplane {
 
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
         var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
-        var response = onPrepare.action(message).orElseThrow(e -> new RuntimeException("Cannot execute action", e));
-
-        dataFlow.transitionToPrepared();
-
-        return store.save(dataFlow).map(it -> response);
+        return Result.attempt(() -> onPrepare.action(message))
+                        .flatMap(r -> {
+                            dataFlow.transitionToPrepared();
+                            var response = new DataFlowResponseMessage(id, Collections.emptyMap(), dataFlow.getState().name(), "");
+                            return store.save(dataFlow).map(it -> response);
+                        });
     }
 
     public Result<DataFlowStatusResponseMessage> status(String dataFlowId) {
@@ -47,11 +52,19 @@ public class Dataplane {
         }
 
         public Dataplane build() {
+            if (dataplane.id == null) {
+                dataplane.id = UUID.randomUUID().toString();
+            }
             return dataplane;
         }
 
         public Builder onPrepare(OnPrepare onPrepare) {
             dataplane.onPrepare = onPrepare;
+            return this;
+        }
+
+        public Builder id(String id) {
+            dataplane.id = id;
             return this;
         }
     }

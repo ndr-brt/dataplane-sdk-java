@@ -1,7 +1,6 @@
 package org.eclipse.dataplane;
 
 import io.restassured.http.ContentType;
-import org.eclipse.dataplane.domain.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.Result;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
@@ -34,10 +32,10 @@ public class DataplaneTest {
     void setUp() {
         httpServer.start();
         var dataplane = Dataplane.newInstance()
+                .id("thisDataplaneId")
                 .onPrepare(prepare -> {
                     // do stuff
-                    var response = new DataFlowResponseMessage("thisDataplaneId", Collections.emptyMap(), "STATE", "");
-                    return Result.success(response);
+                    return Result.success();
                 }).build();
 
         httpServer.deploy(dataplane.controller());
@@ -48,44 +46,47 @@ public class DataplaneTest {
         httpServer.stop();
     }
 
-    @Test
-    void shouldPrepareTransfer() {
-        given()
-                .contentType(ContentType.JSON)
-                .port(port)
-                .body(Map.ofEntries(
-                        Map.entry("processId", "theProcessId"),
-                        Map.entry("messageId", "theMessageId"),
-                        Map.entry("participantId", "theParticipantId")
-                ))
-                .post("/v1/dataflows/prepare")
-                .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("dataplaneId", is("thisDataplaneId"))
-                .body("state", is("STATE"))
-                .body("error", emptyString());
+    @Nested
+    class Prepare {
+        @Test
+        void shouldPrepareTransfer() {
+            given()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .body(Map.ofEntries(
+                            Map.entry("processId", "theProcessId"),
+                            Map.entry("messageId", "theMessageId"),
+                            Map.entry("participantId", "theParticipantId")
+                    ))
+                    .post("/v1/dataflows/prepare")
+                    .then()
+                    .statusCode(200)
+                    .contentType(ContentType.JSON)
+                    .body("dataplaneId", is("thisDataplaneId"))
+                    .body("state", is("PREPARED"))
+                    .body("error", emptyString());
 
-        given()
-                .port(port)
-                .get("/v1/dataflows/{id}/status", "theProcessId")
-                .then()
-                .statusCode(200)
-                .body("dataflowId", is("theProcessId"))
-                .body("state", is("PREPARED"));
-    }
-
-    @Test
-    void shouldReturn404_whenDataFlowDoesNotExist() {
-        given()
-                .port(port)
-                .get("/v1/dataflows/{id}/status", "unexistent")
-                .then()
-                .statusCode(404);
+            given()
+                    .port(port)
+                    .get("/v1/dataflows/{id}/status", "theProcessId")
+                    .then()
+                    .statusCode(200)
+                    .body("dataflowId", is("theProcessId"))
+                    .body("state", is("PREPARED"));
+        }
     }
 
     @Nested
     class Status {
+
+        @Test
+        void shouldReturn404_whenDataFlowDoesNotExist() {
+            given()
+                    .port(port)
+                    .get("/v1/dataflows/{id}/status", "unexistent")
+                    .then()
+                    .statusCode(404);
+        }
 
     }
 

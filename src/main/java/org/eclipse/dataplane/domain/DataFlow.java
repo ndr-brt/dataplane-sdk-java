@@ -1,7 +1,5 @@
 package org.eclipse.dataplane.domain;
 
-import org.eclipse.dataplane.Dataplane;
-
 import java.util.Objects;
 
 public class DataFlow {
