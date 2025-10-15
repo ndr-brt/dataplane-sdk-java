@@ -7,7 +7,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import org.eclipse.dataplane.Dataplane;
-import org.eclipse.dataplane.domain.DataFlow;
 import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.DataFlowStatusResponseMessage;
@@ -28,14 +27,7 @@ public class DataPlaneSignalingApiController {
     @POST
     @Path("/prepare")
     public DataFlowResponseMessage prepare(DataFlowPrepareMessage message) {
-        var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
-        var response = dataplane.onPrepare().action(message).getOrElseThrow(() -> new RuntimeException("Cannot execute action"));
-
-        dataFlow.transitionToPrepared();
-
-        dataplane.save(dataFlow);
-
-        return response; // TODO: pass reason!
+        return dataplane.prepare(message).getOrElseThrow(() -> new RuntimeException("cannot prepare")); // TODO: pass reason!
     }
 
     @GET

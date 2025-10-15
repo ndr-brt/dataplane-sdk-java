@@ -1,6 +1,7 @@
 package org.eclipse.dataplane;
 
 import org.eclipse.dataplane.domain.DataFlow;
+import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
@@ -20,8 +21,13 @@ public class Dataplane {
         return new DataPlaneSignalingApiController(this);
     }
 
-    public OnPrepare onPrepare() {
-        return onPrepare;
+    public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
+        var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
+        var response = onPrepare.action(message).getOrElseThrow(() -> new RuntimeException("Cannot execute action"));
+
+        dataFlow.transitionToPrepared();
+
+        return store.save(dataFlow).map(it -> response);
     }
 
     public Result<DataFlow> findById(String flowId) {
