@@ -72,7 +72,9 @@ public class DataplaneTest {
                 .port(port)
                 .get("/v1/dataflows/{id}/status", "theProcessId")
                 .then()
-                .statusCode(200);
+                .statusCode(200)
+                .body("dataflowId", is("theProcessId"))
+                .body("state", is("PREPARED"));
     }
 
     private static class HttpServer {

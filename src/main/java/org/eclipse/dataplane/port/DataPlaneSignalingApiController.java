@@ -7,8 +7,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import org.eclipse.dataplane.Dataplane;
+import org.eclipse.dataplane.domain.DataFlow;
 import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.DataFlowStatusResponseMessage;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
@@ -23,16 +25,25 @@ public class DataPlaneSignalingApiController {
         this.dataplane = dataplane;
     }
 
-    @GET
-    @Path("/{flowId}/status")
-    public Object status(@PathParam("flowId") String flowId) {
-        return "bau";
-    }
-
     @POST
     @Path("/prepare")
     public DataFlowResponseMessage prepare(DataFlowPrepareMessage message) {
-        return dataplane.onPrepare().action(message).getOrElseThrow(() -> new RuntimeException("Cannot execute action")); // TODO: pass reason!
+        var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
+        var response = dataplane.onPrepare().action(message).getOrElseThrow(() -> new RuntimeException("Cannot execute action"));
+
+        dataFlow.transitionToPrepared();
+
+        dataplane.save(dataFlow);
+
+        return response; // TODO: pass reason!
+    }
+
+    @GET
+    @Path("/{flowId}/status")
+    public DataFlowStatusResponseMessage status(@PathParam("flowId") String flowId) {
+        return dataplane.findById(flowId)
+                .map(f -> new DataFlowStatusResponseMessage(f.getId(), f.getState().name()))
+                .getOrElseThrow(() -> new RuntimeException("cannot execute action")); // TODO: manage reason!
     }
 
 }

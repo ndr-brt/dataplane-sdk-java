@@ -8,7 +8,20 @@ public abstract class Result<C> {
         return new Success<>(content);
     }
 
+    public static <R> Result<R> failure(Exception e){ return new Failure<>(e); }
+
+    public static <R> Result<R> attempt(ExceptionThrowingSupplier<R> resultSupplier){
+        try {
+            var resultValue = resultSupplier.get();
+            return Result.success(resultValue);
+        } catch (Exception exception){
+            return Result.failure(exception);
+        }
+    }
+
     public abstract <X extends Throwable> C getOrElseThrow(Supplier<X> exceptionSupplier) throws X;
+
+    public abstract <T> Result<T> map(ExceptionThrowingFunction<C,T> transformValue);
 
     private static class Success<C> extends Result<C> {
 
@@ -22,13 +35,38 @@ public abstract class Result<C> {
         public <X extends Throwable> C getOrElseThrow(Supplier<X> exceptionSupplier) throws X {
             return content;
         }
+
+        @Override
+        public <T> Result<T> map(ExceptionThrowingFunction<C, T> transformValue) {
+            return Result.attempt(() -> transformValue.apply(this.content));
+        }
     }
 
     private static class Failure<C> extends Result<C> {
+
+        private final Exception exception;
+        private Failure(Exception exception) {
+            this.exception = exception;
+        }
 
         @Override
         public <X extends Throwable> C getOrElseThrow(Supplier<X> exceptionSupplier) throws X {
             throw exceptionSupplier.get();
         }
+
+        @Override
+        public <T> Result<T> map(ExceptionThrowingFunction<C, T> transformValue) {
+            return Result.failure(this.exception);
+        }
+    }
+
+    @FunctionalInterface
+    public interface ExceptionThrowingFunction<T,R> {
+        R apply(T t) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface ExceptionThrowingSupplier<T> {
+        T get() throws Exception;
     }
 }

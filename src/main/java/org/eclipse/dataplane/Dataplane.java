@@ -1,9 +1,15 @@
 package org.eclipse.dataplane;
 
+import org.eclipse.dataplane.domain.DataFlow;
+import org.eclipse.dataplane.domain.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
+import org.eclipse.dataplane.port.store.DataFlowStore;
+import org.eclipse.dataplane.port.store.InMemoryDataFlowStore;
 
 public class Dataplane {
 
+    private final DataFlowStore store = new InMemoryDataFlowStore();
     private OnPrepare onPrepare;
 
     public static Builder newInstance() {
@@ -16,6 +22,14 @@ public class Dataplane {
 
     public OnPrepare onPrepare() {
         return onPrepare;
+    }
+
+    public Result<DataFlow> findById(String flowId) {
+        return store.findById(flowId);
+    }
+
+    public Result<Void> save(DataFlow dataFlow) {
+        return store.save(dataFlow);
     }
 
     public static class Builder {
