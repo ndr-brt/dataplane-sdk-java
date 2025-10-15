@@ -14,8 +14,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.util.Collections;
 import java.util.Map;
@@ -33,6 +33,14 @@ public class DataplaneTest {
     @BeforeEach
     void setUp() {
         httpServer.start();
+        var dataplane = Dataplane.newInstance()
+                .onPrepare(prepare -> {
+                    // do stuff
+                    var response = new DataFlowResponseMessage("thisDataplaneId", Collections.emptyMap(), "STATE", "");
+                    return Result.success(response);
+                }).build();
+
+        httpServer.deploy(dataplane.controller());
     }
 
     @AfterEach
@@ -42,16 +50,6 @@ public class DataplaneTest {
 
     @Test
     void shouldPrepareTransfer() {
-        OnPrepare onPrepare = Mockito.mock();
-        var dataplane = Dataplane.newInstance()
-                .onPrepare(prepare -> {
-                    // do stuff
-                    var response = new DataFlowResponseMessage("thisDataplaneId", Collections.emptyMap(), "STATE", "");
-                    return Result.success(response);
-                }).build();
-
-        httpServer.deploy(dataplane.controller());
-
         given()
                 .contentType(ContentType.JSON)
                 .port(port)
@@ -75,6 +73,20 @@ public class DataplaneTest {
                 .statusCode(200)
                 .body("dataflowId", is("theProcessId"))
                 .body("state", is("PREPARED"));
+    }
+
+    @Test
+    void shouldReturn404_whenDataFlowDoesNotExist() {
+        given()
+                .port(port)
+                .get("/v1/dataflows/{id}/status", "unexistent")
+                .then()
+                .statusCode(404);
+    }
+
+    @Nested
+    class Status {
+
     }
 
     private static class HttpServer {

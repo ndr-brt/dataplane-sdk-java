@@ -24,7 +24,7 @@ public class Dataplane {
 
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
         var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
-        var response = onPrepare.action(message).getOrElseThrow(() -> new RuntimeException("Cannot execute action"));
+        var response = onPrepare.action(message).orElseThrow(e -> new RuntimeException("Cannot execute action", e));
 
         dataFlow.transitionToPrepared();
 

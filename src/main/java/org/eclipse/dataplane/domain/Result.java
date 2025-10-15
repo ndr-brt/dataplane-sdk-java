@@ -1,6 +1,6 @@
 package org.eclipse.dataplane.domain;
 
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 public abstract class Result<C> {
 
@@ -10,7 +10,7 @@ public abstract class Result<C> {
 
     public static <R> Result<R> failure(Exception e){ return new Failure<>(e); }
 
-    public static <R> Result<R> attempt(ExceptionThrowingSupplier<R> resultSupplier){
+    public static <R> Result<R> attempt(ExceptionThrowingSupplier<R> resultSupplier) {
         try {
             var resultValue = resultSupplier.get();
             return Result.success(resultValue);
@@ -19,7 +19,9 @@ public abstract class Result<C> {
         }
     }
 
-    public abstract <X extends Throwable> C getOrElseThrow(Supplier<X> exceptionSupplier) throws X;
+    public abstract C orElseThrow() throws Throwable;
+
+    public abstract <X extends Throwable> C orElseThrow(Function<Exception, X> exceptionSupplier) throws X;
 
     public abstract <T> Result<T> map(ExceptionThrowingFunction<C,T> transformValue);
 
@@ -32,7 +34,12 @@ public abstract class Result<C> {
         }
 
         @Override
-        public <X extends Throwable> C getOrElseThrow(Supplier<X> exceptionSupplier) throws X {
+        public C orElseThrow() throws Exception {
+            return content;
+        }
+
+        @Override
+        public <X extends Throwable> C orElseThrow(Function<Exception, X> exceptionSupplier) throws X {
             return content;
         }
 
@@ -50,8 +57,13 @@ public abstract class Result<C> {
         }
 
         @Override
-        public <X extends Throwable> C getOrElseThrow(Supplier<X> exceptionSupplier) throws X {
-            throw exceptionSupplier.get();
+        public C orElseThrow() throws Exception {
+            throw this.exception;
+        }
+
+        @Override
+        public <X extends Throwable> C orElseThrow(Function<Exception, X> exceptionSupplier) throws X {
+            throw exceptionSupplier.apply(this.exception);
         }
 
         @Override
