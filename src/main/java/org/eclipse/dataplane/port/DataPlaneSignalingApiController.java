@@ -33,9 +33,7 @@ public class DataPlaneSignalingApiController {
     @GET
     @Path("/{flowId}/status")
     public DataFlowStatusResponseMessage status(@PathParam("flowId") String flowId) {
-        return dataplane.findById(flowId)
-                .map(f -> new DataFlowStatusResponseMessage(f.getId(), f.getState().name()))
-                .getOrElseThrow(() -> new RuntimeException("cannot execute action")); // TODO: manage reason!
+        return dataplane.status(flowId).getOrElseThrow(() -> new RuntimeException("cannot execute action")); // TODO: reason!
     }
 
 }

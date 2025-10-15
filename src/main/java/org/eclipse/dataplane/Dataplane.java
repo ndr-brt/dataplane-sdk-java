@@ -3,6 +3,7 @@ package org.eclipse.dataplane;
 import org.eclipse.dataplane.domain.DataFlow;
 import org.eclipse.dataplane.domain.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;
@@ -30,12 +31,13 @@ public class Dataplane {
         return store.save(dataFlow).map(it -> response);
     }
 
-    public Result<DataFlow> findById(String flowId) {
-        return store.findById(flowId);
+    public Result<DataFlowStatusResponseMessage> status(String dataFlowId) {
+        return store.findById(dataFlowId)
+                .map(f -> new DataFlowStatusResponseMessage(f.getId(), f.getState().name())); // TODO: manage reason!
     }
 
-    public Result<Void> save(DataFlow dataFlow) {
-        return store.save(dataFlow);
+    public Result<DataFlow> findById(String flowId) {
+        return store.findById(flowId);
     }
 
     public static class Builder {
