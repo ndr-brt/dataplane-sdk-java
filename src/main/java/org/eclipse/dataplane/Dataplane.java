@@ -34,7 +34,7 @@ public class Dataplane {
                             } else {
                                 dataFlow.transitionToPrepared();
                             }
-                            var response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), "");
+                            var response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), null);
                             return store.save(dataFlow).map(it -> response);
                         });
     }

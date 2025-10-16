@@ -17,6 +17,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.20.0")
+    testImplementation("org.assertj:assertj-core:3.27.6")
     testImplementation("org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.2")
     testImplementation("org.eclipse.jetty:jetty-server:12.1.2")
     testImplementation("org.glassfish.jersey.containers:jersey-container-servlet:3.1.11")

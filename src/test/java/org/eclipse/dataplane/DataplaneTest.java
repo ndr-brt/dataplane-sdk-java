@@ -3,6 +3,9 @@ package org.eclipse.dataplane;
 import io.restassured.http.ContentType;
 import org.eclipse.dataplane.domain.DataAddress;
 import org.eclipse.dataplane.domain.Result;
+import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.ee10.servlet.Source;
@@ -17,15 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
-
-import static io.restassured.RestAssured.given;
 import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.jetty.ee10.servlet.ServletContextHandler.NO_SESSIONS;
-import static org.hamcrest.Matchers.emptyString;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -35,6 +32,7 @@ public class DataplaneTest {
     private final int port = 8090;
     private final HttpServer httpServer = new HttpServer(port);
     private final OnPrepare onPrepare = mock();
+    private final DataplaneClient client = new DataplaneClient("http://localhost:" + port);
 
     @BeforeEach
     void setUp() {
@@ -57,55 +55,48 @@ public class DataplaneTest {
         @Test
         void shouldBePrepared_whenDataAddressIsDefined() {
             when(onPrepare.action(any())).thenReturn(Result.success(new DataAddress("HttpData", "Http", "http://endpoint.somewhere", emptyList())));
+            var prepareMessage = createPrepareMessage("theProcessId");
 
-            given()
-                    .contentType(ContentType.JSON)
-                    .port(port)
-                    .body(Map.ofEntries(
-                            Map.entry("processId", "theProcessId"),
-                            Map.entry("messageId", "theMessageId"),
-                            Map.entry("participantId", "theParticipantId")
-                    ))
-                    .post("/v1/dataflows/prepare")
-                    .then()
-                    .log().ifValidationFails()
+            var prepareResponse = client.prepare(prepareMessage)
                     .statusCode(200)
                     .contentType(ContentType.JSON)
-                    .body("dataplaneId", is("thisDataplaneId"))
-                    .body("dataAddress", not(nullValue()))
-                    .body("state", is("PREPARED"))
-                    .body("error", emptyString());
+                    .extract().as(DataFlowResponseMessage.class);
 
-            given()
-                    .port(port)
-                    .get("/v1/dataflows/{id}/status", "theProcessId")
-                    .then()
+            assertThat(prepareResponse.dataplaneId()).isEqualTo("thisDataplaneId");
+            assertThat(prepareResponse.dataAddress()).isNotNull();
+            assertThat(prepareResponse.state()).isEqualTo("PREPARED");
+            assertThat(prepareResponse.error()).isNull();
+
+            var statusResponse = client.status("theProcessId")
                     .statusCode(200)
-                    .body("dataflowId", is("theProcessId"))
-                    .body("state", is("PREPARED"));
+                    .contentType(ContentType.JSON)
+                    .extract().as(DataFlowStatusResponseMessage.class);
+
+            assertThat(statusResponse.dataflowId()).isEqualTo("theProcessId");
+            assertThat(statusResponse.state()).isEqualTo("PREPARED");
         }
 
         @Test
         void shouldBePreparing_whenDataAddressIsNull() {
             when(onPrepare.action(any())).thenReturn(Result.success(null));
 
-            given()
-                    .contentType(ContentType.JSON)
-                    .port(port)
-                    .body(Map.ofEntries(
-                            Map.entry("processId", "theProcessId"),
-                            Map.entry("messageId", "theMessageId"),
-                            Map.entry("participantId", "theParticipantId")
-                    ))
-                    .post("/v1/dataflows/prepare")
-                    .then()
-                    .log().ifValidationFails()
+            var prepareMessage = createPrepareMessage("theProcessId");
+
+            var prepareResponse = client.prepare(prepareMessage)
                     .statusCode(202)
                     .contentType(ContentType.JSON)
-                    .body("dataplaneId", is("thisDataplaneId"))
-                    .body("dataAddress", nullValue())
-                    .body("state", is("PREPARING"))
-                    .body("error", emptyString());
+                    .extract().as(DataFlowResponseMessage.class);
+
+            assertThat(prepareResponse.dataplaneId()).isEqualTo("thisDataplaneId");
+            assertThat(prepareResponse.dataAddress()).isNull();
+            assertThat(prepareResponse.state()).isEqualTo("PREPARING");
+            assertThat(prepareResponse.error()).isNull();
+        }
+
+        private DataFlowPrepareMessage createPrepareMessage(String processId) {
+            return new DataFlowPrepareMessage("theMessageId", "theParticipantId", "theCounterPartyId",
+                    "theDatapaceContext", processId, "theAgreementId", "theDatasetId", "theCallbackAddress",
+                    "theTransferType", null);
         }
     }
 
@@ -114,11 +105,7 @@ public class DataplaneTest {
 
         @Test
         void shouldReturn404_whenDataFlowDoesNotExist() {
-            given()
-                    .port(port)
-                    .get("/v1/dataflows/{id}/status", "unexistent")
-                    .then()
-                    .statusCode(404);
+            client.status("unexistent").statusCode(404);
         }
 
     }
