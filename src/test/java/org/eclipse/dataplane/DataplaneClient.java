@@ -3,6 +3,7 @@ package org.eclipse.dataplane;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
 
 import static io.restassured.RestAssured.given;
 
@@ -19,6 +20,16 @@ public class DataplaneClient {
                 .baseUri(baseUri)
                 .body(prepareMessage)
                 .post("/v1/dataflows/prepare")
+                .then()
+                .log().ifValidationFails();
+    }
+
+    public ValidatableResponse start(DataFlowStartMessage startMessage) {
+        return given()
+                .contentType(ContentType.JSON)
+                .baseUri(baseUri)
+                .body(startMessage)
+                .post("/v1/dataflows/start")
                 .then()
                 .log().ifValidationFails();
     }

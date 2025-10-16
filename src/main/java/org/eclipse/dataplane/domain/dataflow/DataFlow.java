@@ -5,6 +5,7 @@ import java.util.Objects;
 public class DataFlow {
     private String id;
     private State state;
+    private String transferType;
 
     public static DataFlow.Builder newInstance() {
         return new Builder();
@@ -24,6 +25,18 @@ public class DataFlow {
 
     public void transitionToPreparing() {
         state = State.PREPARING;
+    }
+
+    public void transitionToStarting() {
+        state = State.STARTING;
+    }
+
+    public void transitionToStarted() {
+        state = State.STARTED;
+    }
+
+    public boolean isPush() {
+        return transferType.split("-")[1].equalsIgnoreCase("PUSH");
     }
 
     public static class Builder {
@@ -52,11 +65,18 @@ public class DataFlow {
             dataFlow.state = state;
             return this;
         }
+
+        public Builder transferType(String transferType) {
+            dataFlow.transferType = transferType;
+            return this;
+        }
     }
 
     public enum State {
         INITIATING,
         PREPARING,
-        PREPARED
+        PREPARED,
+        STARTING,
+        STARTED
     }
 }

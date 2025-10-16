@@ -4,7 +4,10 @@ import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
+import org.eclipse.dataplane.logic.OnPrepare;
+import org.eclipse.dataplane.logic.OnStart;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;
 import org.eclipse.dataplane.port.store.InMemoryDataFlowStore;
@@ -15,7 +18,8 @@ public class Dataplane {
 
     private final DataFlowStore store = new InMemoryDataFlowStore();
     private String id;
-    private OnPrepare onPrepare;
+    private OnPrepare onPrepare = _m -> Result.failure(new UnsupportedOperationException("onPrepare is not implemented"));
+    private OnStart onStart = _m -> Result.failure(new UnsupportedOperationException("onStarted is not implemented"));
 
     public static Builder newInstance() {
         return new Builder();
@@ -28,24 +32,42 @@ public class Dataplane {
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
         var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
         return onPrepare.action(message)
-                        .compose(dataAddress -> {
-                            if (dataAddress == null) {
-                                dataFlow.transitionToPreparing();
-                            } else {
-                                dataFlow.transitionToPrepared();
-                            }
-                            var response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), null);
-                            return store.save(dataFlow).map(it -> response);
-                        });
+                .compose(futureDataAddress -> {
+                    DataFlowResponseMessage response;
+                    if (futureDataAddress.isDone()) {
+                        dataFlow.transitionToPrepared();
+                        var dataAddress = futureDataAddress.join(); // TODO: manage the async case
+                        response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), null);
+                    } else {
+                        dataFlow.transitionToPreparing();
+                        response = new DataFlowResponseMessage(id, null, dataFlow.getState().name(), null);
+                    }
+
+                    return store.save(dataFlow).map(it -> response);
+                });
+    }
+
+
+    public Result<DataFlowResponseMessage> start(DataFlowStartMessage message) {
+        var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.STARTING).build();
+        return onStart.action(message)
+                .compose(futureDataAddress -> {
+                    DataFlowResponseMessage response;
+                    if (futureDataAddress.isDone()) {
+                        dataFlow.transitionToStarted();
+                        var dataAddress = futureDataAddress.join(); // TODO: manage the async case
+                        response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), null);
+                    } else {
+                        dataFlow.transitionToStarting();
+                        response = new DataFlowResponseMessage(id, null, dataFlow.getState().name(), null);
+                    }
+                    return store.save(dataFlow).map(it -> response);
+                });
     }
 
     public Result<DataFlowStatusResponseMessage> status(String dataFlowId) {
         return store.findById(dataFlowId)
-                .map(f -> new DataFlowStatusResponseMessage(f.getId(), f.getState().name())); // TODO: manage reason!
-    }
-
-    public Result<DataFlow> findById(String flowId) {
-        return store.findById(flowId);
+                .map(f -> new DataFlowStatusResponseMessage(f.getId(), f.getState().name()));
     }
 
     public static class Builder {
@@ -63,6 +85,11 @@ public class Dataplane {
 
         public Builder onPrepare(OnPrepare onPrepare) {
             dataplane.onPrepare = onPrepare;
+            return this;
+        }
+
+        public Builder onStart(OnStart onStart) {
+            dataplane.onStart = onStart;
             return this;
         }
 

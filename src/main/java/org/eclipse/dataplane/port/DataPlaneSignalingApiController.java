@@ -10,7 +10,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.dataplane.Dataplane;
+import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.port.exception.DataFlowNotFoundException;
 
@@ -31,7 +33,17 @@ public class DataPlaneSignalingApiController {
     @Path("/prepare")
     public Response prepare(DataFlowPrepareMessage message) {
         var response = dataplane.prepare(message).orElseThrow(this::mapToWsRsException);
-        if (response.dataAddress() == null) {
+        if (response.state().equals(DataFlow.State.PREPARING.name())) {
+            return Response.accepted(response).build();
+        }
+        return Response.ok(response).build();
+    }
+
+    @POST
+    @Path("/start")
+    public Response start(DataFlowStartMessage message) {
+        var response = dataplane.start(message).orElseThrow(this::mapToWsRsException);
+        if (response.state().equals(DataFlow.State.STARTING.name())) {
             return Response.accepted(response).build();
         }
         return Response.ok(response).build();

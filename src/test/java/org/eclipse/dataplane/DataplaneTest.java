@@ -6,23 +6,16 @@ import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
-import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee10.servlet.ServletHolder;
-import org.eclipse.jetty.ee10.servlet.Source;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
+import org.eclipse.dataplane.logic.OnPrepare;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
+
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.eclipse.jetty.ee10.servlet.ServletContextHandler.NO_SESSIONS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,7 +25,7 @@ public class DataplaneTest {
     private final int port = 8090;
     private final HttpServer httpServer = new HttpServer(port);
     private final OnPrepare onPrepare = mock();
-    private final DataplaneClient client = new DataplaneClient("http://localhost:" + port);
+    private final DataplaneClient client = new DataplaneClient("http://localhost:" + port + "/api");
 
     @BeforeEach
     void setUp() {
@@ -42,7 +35,7 @@ public class DataplaneTest {
                 .onPrepare(onPrepare)
                 .build();
 
-        httpServer.deploy(dataplane.controller());
+        httpServer.deploy("/api", dataplane.controller());
     }
 
     @AfterEach
@@ -53,8 +46,8 @@ public class DataplaneTest {
     @Nested
     class Prepare {
         @Test
-        void shouldBePrepared_whenDataAddressIsDefined() {
-            when(onPrepare.action(any())).thenReturn(Result.success(new DataAddress("HttpData", "Http", "http://endpoint.somewhere", emptyList())));
+        void shouldBePrepared_whenOnPrepareCompleted() {
+            when(onPrepare.action(any())).thenReturn(Result.success(CompletableFuture.completedFuture(new DataAddress("HttpData", "Http", "http://endpoint.somewhere", emptyList()))));
             var prepareMessage = createPrepareMessage("theProcessId");
 
             var prepareResponse = client.prepare(prepareMessage)
@@ -77,8 +70,8 @@ public class DataplaneTest {
         }
 
         @Test
-        void shouldBePreparing_whenDataAddressIsNull() {
-            when(onPrepare.action(any())).thenReturn(Result.success(null));
+        void shouldBePreparing_whenOnPrepareNotCompletedYet() {
+            when(onPrepare.action(any())).thenReturn(Result.success(new CompletableFuture<>()));
 
             var prepareMessage = createPrepareMessage("theProcessId");
 
@@ -110,53 +103,4 @@ public class DataplaneTest {
 
     }
 
-    private static class HttpServer {
-
-        private final Server server;
-        private final ServletContextHandler servletContextHandler = new ServletContextHandler(NO_SESSIONS);
-
-        public HttpServer(int port) {
-            server = new Server();
-            var connector = new ServerConnector(server);
-            connector.setPort(port);
-            server.setConnectors(new Connector[] {connector});
-            server.setHandler(servletContextHandler);
-        }
-
-        public void start() {
-            try {
-                server.start();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        public void deploy(Object controller) {
-            var servletHolder = createServletHolder(controller);
-            servletContextHandler.getServletHandler().addServletWithMapping(servletHolder, "/*");
-        }
-
-        public void stop() {
-            try {
-                server.stop();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        private ServletHolder createServletHolder(Object controller) {
-            var resourceConfig = new ResourceConfig();
-            resourceConfig.registerClasses(controller.getClass());
-            resourceConfig.registerInstances(new AbstractBinder() {
-                @Override
-                protected void configure() {
-                    bind(controller).to((Class<? super Object>) controller.getClass());
-                }
-            });
-            var servlet = new ServletContainer(resourceConfig);
-            var servletHolder = new ServletHolder(Source.EMBEDDED);
-            servletHolder.setServlet(servlet);
-            return servletHolder;
-        }
-    }
 }
