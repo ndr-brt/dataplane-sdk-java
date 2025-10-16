@@ -1,10 +1,11 @@
 package org.eclipse.dataplane;
 
-import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
+import org.eclipse.dataplane.domain.DataAddress;
 import org.eclipse.dataplane.domain.Result;
+import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 
 public interface OnPrepare {
 
-    Result<Void> action(DataFlowPrepareMessage dataFlowPrepareMessage);
+    Result<DataAddress> action(DataFlowPrepareMessage dataFlowPrepareMessage);
 
 }

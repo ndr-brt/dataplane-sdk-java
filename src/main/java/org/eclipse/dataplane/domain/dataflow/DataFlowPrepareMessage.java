@@ -1,6 +1,6 @@
 package org.eclipse.dataplane.domain.dataflow;
 
-import java.util.Map;
+import org.eclipse.dataplane.domain.DataAddress;
 
 public record DataFlowPrepareMessage(
         String messageId,
@@ -12,6 +12,6 @@ public record DataFlowPrepareMessage(
         String datasetId,
         String callbackAddress,
         String transferType,
-        Map<String, Object> dataAddress
+        DataAddress dataAddress
 ) {
 }

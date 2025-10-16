@@ -22,6 +22,10 @@ public class DataFlow {
         state = State.PREPARED;
     }
 
+    public void transitionToPreparing() {
+        state = State.PREPARING;
+    }
+
     public static class Builder {
         private final DataFlow dataFlow = new DataFlow();
 

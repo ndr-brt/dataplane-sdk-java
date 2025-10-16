@@ -29,7 +29,7 @@ public abstract class Result<C> {
 
     public abstract <T> Result<T> map(ExceptionThrowingFunction<C,T> transformValue);
 
-    public abstract <T> Result<T> flatMap(ExceptionThrowingFunction<C, Result<T>> transformValue);
+    public abstract <T> Result<T> compose(ExceptionThrowingFunction<C, Result<T>> transformValue);
 
     private static class Success<C> extends Result<C> {
 
@@ -55,7 +55,7 @@ public abstract class Result<C> {
         }
 
         @Override
-        public <T> Result<T> flatMap(ExceptionThrowingFunction<C, Result<T>> transformValue) {
+        public <T> Result<T> compose(ExceptionThrowingFunction<C, Result<T>> transformValue) {
             try {
                 return transformValue.apply(this.content);
             } catch(Exception e) {
@@ -87,7 +87,7 @@ public abstract class Result<C> {
         }
 
         @Override
-        public <T> Result<T> flatMap(ExceptionThrowingFunction<C, Result<T>> transformValue) {
+        public <T> Result<T> compose(ExceptionThrowingFunction<C, Result<T>> transformValue) {
             return Result.failure(this.exception);
         }
     }

@@ -1,10 +1,10 @@
 package org.eclipse.dataplane.domain.dataflow;
 
-import java.util.Map;
+import org.eclipse.dataplane.domain.DataAddress;
 
 public record DataFlowResponseMessage(
         String dataplaneId,
-        Map<String, Object> dataAddress,
+        DataAddress dataAddress,
         String state,
         String error
 ) {

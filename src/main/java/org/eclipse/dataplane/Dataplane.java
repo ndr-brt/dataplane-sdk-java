@@ -1,15 +1,14 @@
 package org.eclipse.dataplane;
 
+import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
-import org.eclipse.dataplane.domain.Result;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;
 import org.eclipse.dataplane.port.store.InMemoryDataFlowStore;
 
-import java.util.Collections;
 import java.util.UUID;
 
 public class Dataplane {
@@ -28,10 +27,14 @@ public class Dataplane {
 
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
         var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
-        return Result.attempt(() -> onPrepare.action(message))
-                        .flatMap(r -> {
-                            dataFlow.transitionToPrepared();
-                            var response = new DataFlowResponseMessage(id, Collections.emptyMap(), dataFlow.getState().name(), "");
+        return onPrepare.action(message)
+                        .compose(dataAddress -> {
+                            if (dataAddress == null) {
+                                dataFlow.transitionToPreparing();
+                            } else {
+                                dataFlow.transitionToPrepared();
+                            }
+                            var response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), "");
                             return store.save(dataFlow).map(it -> response);
                         });
     }

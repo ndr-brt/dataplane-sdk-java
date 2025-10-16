@@ -1,6 +1,7 @@
 package org.eclipse.dataplane;
 
 import io.restassured.http.ContentType;
+import org.eclipse.dataplane.domain.DataAddress;
 import org.eclipse.dataplane.domain.Result;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -19,24 +20,29 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
+import static java.util.Collections.emptyList;
 import static org.eclipse.jetty.ee10.servlet.ServletContextHandler.NO_SESSIONS;
 import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class DataplaneTest {
 
     private final int port = 8090;
     private final HttpServer httpServer = new HttpServer(port);
+    private final OnPrepare onPrepare = mock();
 
     @BeforeEach
     void setUp() {
         httpServer.start();
         var dataplane = Dataplane.newInstance()
                 .id("thisDataplaneId")
-                .onPrepare(prepare -> {
-                    // do stuff
-                    return Result.success();
-                }).build();
+                .onPrepare(onPrepare)
+                .build();
 
         httpServer.deploy(dataplane.controller());
     }
@@ -49,7 +55,9 @@ public class DataplaneTest {
     @Nested
     class Prepare {
         @Test
-        void shouldPrepareTransfer() {
+        void shouldBePrepared_whenDataAddressIsDefined() {
+            when(onPrepare.action(any())).thenReturn(Result.success(new DataAddress("HttpData", "Http", "http://endpoint.somewhere", emptyList())));
+
             given()
                     .contentType(ContentType.JSON)
                     .port(port)
@@ -60,9 +68,11 @@ public class DataplaneTest {
                     ))
                     .post("/v1/dataflows/prepare")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(200)
                     .contentType(ContentType.JSON)
                     .body("dataplaneId", is("thisDataplaneId"))
+                    .body("dataAddress", not(nullValue()))
                     .body("state", is("PREPARED"))
                     .body("error", emptyString());
 
@@ -73,6 +83,29 @@ public class DataplaneTest {
                     .statusCode(200)
                     .body("dataflowId", is("theProcessId"))
                     .body("state", is("PREPARED"));
+        }
+
+        @Test
+        void shouldBePreparing_whenDataAddressIsNull() {
+            when(onPrepare.action(any())).thenReturn(Result.success(null));
+
+            given()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .body(Map.ofEntries(
+                            Map.entry("processId", "theProcessId"),
+                            Map.entry("messageId", "theMessageId"),
+                            Map.entry("participantId", "theParticipantId")
+                    ))
+                    .post("/v1/dataflows/prepare")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(202)
+                    .contentType(ContentType.JSON)
+                    .body("dataplaneId", is("thisDataplaneId"))
+                    .body("dataAddress", nullValue())
+                    .body("state", is("PREPARING"))
+                    .body("error", emptyString());
         }
     }
 
