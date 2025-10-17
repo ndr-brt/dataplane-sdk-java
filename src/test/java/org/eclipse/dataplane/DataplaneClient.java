@@ -59,4 +59,12 @@ public class DataplaneClient {
             return getFreePort();
         }
     }
+
+    public ValidatableResponse completed(String dataFlowId) {
+        return given()
+                .baseUri(baseUri)
+                .post("/v1/dataflows/{id}/completed", dataFlowId)
+                .then()
+                .log().ifValidationFails();
+    }
 }

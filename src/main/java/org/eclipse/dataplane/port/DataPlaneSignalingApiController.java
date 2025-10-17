@@ -17,6 +17,7 @@ import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.port.exception.DataFlowNotFoundException;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
+import static jakarta.ws.rs.core.MediaType.WILDCARD;
 
 @Path("/v1/dataflows")
 @Consumes(APPLICATION_JSON)
@@ -47,6 +48,14 @@ public class DataPlaneSignalingApiController {
             return Response.accepted(response).build();
         }
         return Response.ok(response).build();
+    }
+
+    @POST
+    @Path("/{flowId}/completed")
+    @Consumes(WILDCARD)
+    public Response completed(@PathParam("flowId") String flowId) {
+        dataplane.completed(flowId).orElseThrow(this::mapToWsRsException);
+        return Response.ok().build();
     }
 
     @GET

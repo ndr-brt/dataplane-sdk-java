@@ -27,6 +27,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.eclipse.dataplane.domain.dataflow.DataFlow.State.COMPLETED;
+import static org.eclipse.dataplane.domain.dataflow.DataFlow.State.PREPARED;
+import static org.eclipse.dataplane.domain.dataflow.DataFlow.State.STARTED;
 
 public class ProviderPushTest {
 
@@ -68,30 +70,35 @@ public class ProviderPushTest {
     @Test
     void shouldPushDataToEndpointPreparedByConsumer() {
         var transferType = "FileSystem-PUSH";
-        var consumerProcessId = UUID.randomUUID().toString();
+        var processId = UUID.randomUUID().toString();
+        var consumerProcessId = "consumer_" + processId;
         var prepareMessage = new DataFlowPrepareMessage("theMessageId", "theParticipantId", "theCounterPartyId",
                 "theDataspaceContext", consumerProcessId, "theAgreementId", "theDatasetId", "theCallbackAddress",
                 transferType, null);
 
         var prepareResponse = controlPlane.consumerPrepare(prepareMessage).statusCode(200).extract().as(DataFlowResponseMessage.class);
-        assertThat(prepareResponse.state()).isEqualTo("PREPARED");
+        assertThat(prepareResponse.state()).isEqualTo(PREPARED.name());
         assertThat(prepareResponse.dataAddress()).isNotNull();
         var destinationDataAddress = prepareResponse.dataAddress();
 
-        var providerProcessId = UUID.randomUUID().toString();
+        var providerProcessId = "provider_" + processId;
         var startMessage = new DataFlowStartMessage("theMessageId", "theParticipantId", "theCounterPartyId",
                 "theDataspaceContext", providerProcessId, "theAgreementId", "theDatasetId", controlPlane.providerCallbackAddress(),
                 transferType, destinationDataAddress);
         var startResponse = controlPlane.providerStart(startMessage).statusCode(200).extract().as(DataFlowResponseMessage.class);
 
-        assertThat(startResponse.state()).isEqualTo("STARTED");
+        assertThat(startResponse.state()).isEqualTo(STARTED.name());
         assertThat(startResponse.dataAddress()).isNull();
 
         await().untilAsserted(() -> {
             var path = Path.of(destinationDataAddress.endpoint()).resolve("data.txt");
             assertThat(path).exists().content().isEqualTo("hello world");
+
             var providerStatus = controlPlane.providerStatus(providerProcessId).statusCode(200).extract().as(DataFlowStatusResponseMessage.class);
             assertThat(providerStatus.state()).isEqualTo(COMPLETED.name());
+
+            var consumerStatus = controlPlane.consumerStatus(consumerProcessId).statusCode(200).extract().as(DataFlowStatusResponseMessage.class);
+            assertThat(consumerStatus.state()).isEqualTo(COMPLETED.name());
         });
     }
 
@@ -126,9 +133,9 @@ public class ProviderPushTest {
 
             future.whenComplete((_v, throwable) -> {
                 if (throwable == null) {
-                    sdk.notifyCompleted(dataFlow);
+                    sdk.notifyCompleted(dataFlow.getId());
                 } else {
-                    sdk.notifyErrored(dataFlow, throwable);
+                    sdk.notifyErrored(dataFlow.getId(), throwable);
                 }
             });
 

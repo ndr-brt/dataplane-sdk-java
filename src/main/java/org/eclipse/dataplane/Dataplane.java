@@ -89,28 +89,35 @@ public class Dataplane {
     /**
      * Notify the control plane that the data flow has been completed
      *
-     * @param dataFlow
+     * @param dataFlowId
      */
-    public void notifyCompleted(DataFlow dataFlow) {
-        try {
-            var uri = URI.create(dataFlow.getCallbackAddress())
-                    .resolve("transfers").resolve(dataFlow.getId()).resolve("dataflow").resolve("completed");
+    public void notifyCompleted(String dataFlowId) {
+            store.findById(dataFlowId)
+                    .map(dataFlow -> {
+                        try {
+                            var endpoint = dataFlow.getCallbackAddress() + "/transfers/" + dataFlow.getId() + "/dataflow/completed";
 
-            var request = HttpRequest.newBuilder()
-                    .uri(uri)
-                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
-                    .build();
+                            var request = HttpRequest.newBuilder()
+                                    .uri(URI.create(endpoint))
+                                    .header("content-type", "application/json")
+                                    .POST(HttpRequest.BodyPublishers.ofString("{}")) // TODO DataFlowCompletedMessage not defined
+                                    .build();
 
-            var response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding());
+                            var response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding());
 
-            dataFlow.transitionToCompleted();
-            store.save(dataFlow);
+                            // TODO: handle failure
+                            // TODO: should this be done asynchronously? retry, and so on...
 
-            // TODO: handle response
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+                            dataFlow.transitionToCompleted();
+                            store.save(dataFlow);
+
+                            // TODO: handle response
+                            return null;
+                        } catch (IOException | InterruptedException e) {
+                            e.printStackTrace();
+                            throw new RuntimeException(e);
+                        }
+                    });
     }
 
     /**
@@ -119,8 +126,21 @@ public class Dataplane {
      * @param dataFlow
      * @param throwable
      */
-    public void notifyErrored(DataFlow dataFlow, Throwable throwable) {
+    public void notifyErrored(String dataFlow, Throwable throwable) {
         // TODO: implementation
+    }
+
+    /**
+     * Received notification that the flow has been completed
+     *
+     * @param flowId
+     * @return
+     */
+    public Result<Void> completed(String flowId) {
+        return store.findById(flowId).compose(dataFlow -> {
+            dataFlow.transitionToCompleted();
+            return store.save(dataFlow);
+        });
     }
 
     public static class Builder {
