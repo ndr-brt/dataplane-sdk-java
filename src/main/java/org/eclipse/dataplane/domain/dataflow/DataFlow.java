@@ -1,11 +1,15 @@
 package org.eclipse.dataplane.domain.dataflow;
 
+import org.eclipse.dataplane.domain.DataAddress;
+
 import java.util.Objects;
 
 public class DataFlow {
     private String id;
     private State state;
     private String transferType;
+    private DataAddress dataAddress;
+    private String callbackAddress;
 
     public static DataFlow.Builder newInstance() {
         return new Builder();
@@ -17,6 +21,14 @@ public class DataFlow {
 
     public State getState() {
         return state;
+    }
+
+    public DataAddress getDataAddress() {
+        return dataAddress;
+    }
+
+    public String getCallbackAddress() {
+        return callbackAddress;
     }
 
     public void transitionToPrepared() {
@@ -35,8 +47,20 @@ public class DataFlow {
         state = State.STARTED;
     }
 
+    public void transitionToCompleted() {
+        state = State.COMPLETED;
+    }
+
     public boolean isPush() {
         return transferType.split("-")[1].equalsIgnoreCase("PUSH");
+    }
+
+    public boolean isStarted() {
+        return state == State.STARTED;
+    }
+
+    public boolean isPull() {
+        return transferType.split("-")[1].equalsIgnoreCase("PULL");
     }
 
     public static class Builder {
@@ -70,6 +94,16 @@ public class DataFlow {
             dataFlow.transferType = transferType;
             return this;
         }
+
+        public Builder dataAddress(DataAddress dataAddress) {
+            dataFlow.dataAddress = dataAddress;
+            return this;
+        }
+
+        public Builder callbackAddress(String callbackAddress) {
+            dataFlow.callbackAddress = callbackAddress;
+            return this;
+        }
     }
 
     public enum State {
@@ -77,6 +111,8 @@ public class DataFlow {
         PREPARING,
         PREPARED,
         STARTING,
-        STARTED
+        STARTED,
+        COMPLETED
     }
 }
+

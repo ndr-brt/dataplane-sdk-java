@@ -16,8 +16,10 @@ public class HttpServer {
 
     private final Server server;
     private final ServletContextHandler servletContextHandler = new ServletContextHandler(NO_SESSIONS);
+    private final int port;
 
     public HttpServer(int port) {
+        this.port = port;
         server = new Server();
         var connector = new ServerConnector(server);
         connector.setPort(port);
@@ -59,5 +61,9 @@ public class HttpServer {
         var servletHolder = new ServletHolder(Source.EMBEDDED);
         servletHolder.setServlet(servlet);
         return servletHolder;
+    }
+
+    public int port() {
+        return port;
     }
 }

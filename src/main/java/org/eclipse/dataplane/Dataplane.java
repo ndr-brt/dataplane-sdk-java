@@ -12,6 +12,11 @@ import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;
 import org.eclipse.dataplane.port.store.InMemoryDataFlowStore;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.UUID;
 
 public class Dataplane {
@@ -30,7 +35,14 @@ public class Dataplane {
     }
 
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
-        var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.PREPARING).build();
+        var dataFlow = DataFlow.newInstance()
+                .id(message.processId())
+                .state(DataFlow.State.PREPARING)
+                .dataAddress(message.dataAddress())
+                .callbackAddress(message.callbackAddress())
+                .transferType(message.transferType())
+                .build();
+
         return onPrepare.action(message)
                 .compose(futureDataAddress -> {
                     DataFlowResponseMessage response;
@@ -49,16 +61,20 @@ public class Dataplane {
 
 
     public Result<DataFlowResponseMessage> start(DataFlowStartMessage message) {
-        var dataFlow = DataFlow.newInstance().id(message.processId()).state(DataFlow.State.STARTING).build();
-        return onStart.action(message)
-                .compose(futureDataAddress -> {
+        var initialDataFlow = DataFlow.newInstance()
+                .id(message.processId())
+                .state(DataFlow.State.STARTING)
+                .dataAddress(message.dataAddress())
+                .callbackAddress(message.callbackAddress())
+                .transferType(message.transferType())
+                .build();
+
+        return onStart.action(initialDataFlow)
+                .compose(dataFlow -> {
                     DataFlowResponseMessage response;
-                    if (futureDataAddress.isDone()) {
-                        dataFlow.transitionToStarted();
-                        var dataAddress = futureDataAddress.join(); // TODO: manage the async case
-                        response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), null);
+                    if (dataFlow.isStarted() && dataFlow.isPull()) {
+                        response = new DataFlowResponseMessage(id, dataFlow.getDataAddress(), dataFlow.getState().name(), null);
                     } else {
-                        dataFlow.transitionToStarting();
                         response = new DataFlowResponseMessage(id, null, dataFlow.getState().name(), null);
                     }
                     return store.save(dataFlow).map(it -> response);
@@ -68,6 +84,43 @@ public class Dataplane {
     public Result<DataFlowStatusResponseMessage> status(String dataFlowId) {
         return store.findById(dataFlowId)
                 .map(f -> new DataFlowStatusResponseMessage(f.getId(), f.getState().name()));
+    }
+
+    /**
+     * Notify the control plane that the data flow has been completed
+     *
+     * @param dataFlow
+     */
+    public void notifyCompleted(DataFlow dataFlow) {
+        try {
+            var uri = URI.create(dataFlow.getCallbackAddress())
+                    .resolve("transfers").resolve(dataFlow.getId()).resolve("dataflow").resolve("completed");
+
+            var request = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                    .build();
+
+            var response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding());
+
+            dataFlow.transitionToCompleted();
+            store.save(dataFlow);
+
+            // TODO: handle response
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Notify the control plane that the data flow failed for some reason
+     *
+     * @param dataFlow
+     * @param throwable
+     */
+    public void notifyErrored(DataFlow dataFlow, Throwable throwable) {
+        // TODO: implementation
     }
 
     public static class Builder {
