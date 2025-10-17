@@ -11,7 +11,6 @@ import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 import static jakarta.ws.rs.core.MediaType.WILDCARD;
 
 /**
@@ -25,10 +24,10 @@ public class ControlPlane {
     private final DataplaneClient providerClient;
     private final HttpServer httpServer;
 
-    public ControlPlane(HttpServer httpServer, String consumerUrl, String providerUrl) {
+    public ControlPlane(HttpServer httpServer, String consumerDataPlanePath, String providerDataPlanePath) {
         this.httpServer = httpServer;
-        consumerClient = new DataplaneClient(consumerUrl);
-        providerClient = new DataplaneClient(providerUrl);
+        consumerClient = new DataplaneClient("http://localhost:%d%s".formatted(httpServer.port(), consumerDataPlanePath));
+        providerClient = new DataplaneClient("http://localhost:%d%s".formatted(httpServer.port(), providerDataPlanePath));
 
         httpServer.deploy("/consumer/control-plane", new ControlPlaneController(providerClient));
         httpServer.deploy("/provider/control-plane", new ControlPlaneController(consumerClient));

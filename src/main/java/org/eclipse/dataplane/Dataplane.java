@@ -24,7 +24,7 @@ public class Dataplane {
     private final DataFlowStore store = new InMemoryDataFlowStore();
     private String id;
     private OnPrepare onPrepare = _m -> Result.failure(new UnsupportedOperationException("onPrepare is not implemented"));
-    private OnStart onStart = _m -> Result.failure(new UnsupportedOperationException("onStarted is not implemented"));
+    private OnStart onStart = _m -> Result.failure(new UnsupportedOperationException("onStart is not implemented"));
 
     public static Builder newInstance() {
         return new Builder();

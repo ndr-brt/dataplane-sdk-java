@@ -32,34 +32,18 @@ import static org.eclipse.dataplane.domain.dataflow.DataFlow.State.STARTED;
 
 public class ProviderPushTest {
 
-    private final int port = 21341;
-
     private final HttpServer httpServer = new HttpServer(21341);
 
-    private final ControlPlane controlPlane = new ControlPlane(httpServer,
-                "http://localhost:%d/consumer/data-plane".formatted(port),
-                "http://localhost:%d/provider/data-plane".formatted(port));
+    private final ControlPlane controlPlane = new ControlPlane(httpServer, "/consumer/data-plane", "/provider/data-plane");
+    private final ConsumerDataPlane consumerDataPlane = new ConsumerDataPlane();
+    private final ProviderDataPlane providerDataPlane = new ProviderDataPlane();
 
     @BeforeEach
     void setUp() {
         httpServer.start();
 
-        var consumer = Dataplane.newInstance()
-                .id("thisDataplaneId")
-                .onPrepare(message -> {
-                    try {
-                        var destinationFolder = Files.createTempDirectory("consumer-dest");
-                        var dataAddress = new DataAddress("FileSystem", "folder", destinationFolder.toString(), emptyList());
-                        return Result.success(completedFuture(dataAddress));
-                    } catch (IOException e) {
-                        return Result.failure(e);
-                    }
-                })
-                .build();
-        httpServer.deploy("/consumer/data-plane", consumer.controller());
-
-        var providerDataPlane = new ProviderDataPlane(httpServer);
-        providerDataPlane.start();
+        httpServer.deploy("/consumer/data-plane", consumerDataPlane.controller());
+        httpServer.deploy("/provider/data-plane", providerDataPlane.controller());
     }
 
     @AfterEach
@@ -104,20 +88,11 @@ public class ProviderPushTest {
 
     private static class ProviderDataPlane {
 
-        private final HttpServer httpServer;
         private final ExecutorService executor = Executors.newCachedThreadPool();
         private final Dataplane sdk = Dataplane.newInstance()
                 .id("provider")
                 .onStart(this::onStart)
                 .build();
-
-        public ProviderDataPlane(HttpServer httpServer) {
-            this.httpServer = httpServer;
-        }
-
-        public void start() {
-            httpServer.deploy("/provider/data-plane", sdk.controller());
-        }
 
         private Result<DataFlow> onStart(DataFlow dataFlow) {
             var dataAddress = dataFlow.getDataAddress();
@@ -141,6 +116,32 @@ public class ProviderPushTest {
 
             dataFlow.transitionToStarted();
             return Result.success(dataFlow);
+        }
+
+        public Object controller() {
+            return sdk.controller();
+        }
+    }
+
+    private static class ConsumerDataPlane {
+
+        private final Dataplane sdk = Dataplane.newInstance()
+                .id("thisDataplaneId")
+                .onPrepare(this::onPrepare)
+                .build();
+
+        private Result<CompletableFuture<DataAddress>> onPrepare(DataFlowPrepareMessage prepareMessage) {
+            try {
+                var destinationFolder = Files.createTempDirectory("consumer-dest");
+                var dataAddress = new DataAddress("FileSystem", "folder", destinationFolder.toString(), emptyList());
+                return Result.success(completedFuture(dataAddress));
+            } catch (IOException e) {
+                return Result.failure(e);
+            }
+        }
+
+        public Object controller() {
+            return sdk.controller();
         }
     }
 }
