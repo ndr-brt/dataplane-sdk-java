@@ -55,12 +55,20 @@ public class DataFlow {
         return transferType.split("-")[1].equalsIgnoreCase("PUSH");
     }
 
+    public boolean isPrepared() {
+        return state == State.PREPARED;
+    }
+
     public boolean isStarted() {
         return state == State.STARTED;
     }
 
     public boolean isPull() {
         return transferType.split("-")[1].equalsIgnoreCase("PULL");
+    }
+
+    public void setDataAddress(DataAddress dataAddress) {
+        this.dataAddress = dataAddress;
     }
 
     public static class Builder {

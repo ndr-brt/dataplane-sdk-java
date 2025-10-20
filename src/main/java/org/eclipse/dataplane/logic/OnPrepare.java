@@ -1,13 +1,10 @@
 package org.eclipse.dataplane.logic;
 
-import org.eclipse.dataplane.domain.DataAddress;
 import org.eclipse.dataplane.domain.Result;
-import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
-
-import java.util.concurrent.CompletableFuture;
+import org.eclipse.dataplane.domain.dataflow.DataFlow;
 
 public interface OnPrepare {
 
-    Result<CompletableFuture<DataAddress>> action(DataFlowPrepareMessage dataFlowPrepareMessage);
+    Result<DataFlow> action(DataFlow dataFlow);
 
 }

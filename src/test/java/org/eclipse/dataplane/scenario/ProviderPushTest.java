@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static java.util.Collections.emptyList;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.eclipse.dataplane.domain.dataflow.DataFlow.State.COMPLETED;
@@ -130,11 +129,15 @@ public class ProviderPushTest {
                 .onPrepare(this::onPrepare)
                 .build();
 
-        private Result<CompletableFuture<DataAddress>> onPrepare(DataFlowPrepareMessage prepareMessage) {
+        private Result<DataFlow> onPrepare(DataFlow dataFlow) {
             try {
                 var destinationFolder = Files.createTempDirectory("consumer-dest");
                 var dataAddress = new DataAddress("FileSystem", "folder", destinationFolder.toString(), emptyList());
-                return Result.success(completedFuture(dataAddress));
+
+                dataFlow.setDataAddress(dataAddress); // TODO: the source data address and the data address tbu by the provider are two different ones!
+                dataFlow.transitionToPrepared();
+
+                return Result.success(dataFlow);
             } catch (IOException e) {
                 return Result.failure(e);
             }

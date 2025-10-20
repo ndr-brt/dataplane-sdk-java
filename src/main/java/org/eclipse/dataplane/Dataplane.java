@@ -35,7 +35,7 @@ public class Dataplane {
     }
 
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
-        var dataFlow = DataFlow.newInstance()
+        var initialDataFlow = DataFlow.newInstance()
                 .id(message.processId())
                 .state(DataFlow.State.PREPARING)
                 .dataAddress(message.dataAddress())
@@ -43,19 +43,16 @@ public class Dataplane {
                 .transferType(message.transferType())
                 .build();
 
-        return onPrepare.action(message)
-                .compose(futureDataAddress -> {
+        return onPrepare.action(initialDataFlow)
+                .compose(dataFlow -> {
                     DataFlowResponseMessage response;
-                    if (futureDataAddress.isDone()) {
-                        dataFlow.transitionToPrepared();
-                        var dataAddress = futureDataAddress.join(); // TODO: manage the async case
-                        response = new DataFlowResponseMessage(id, dataAddress, dataFlow.getState().name(), null);
+                    if (dataFlow.isPrepared() && dataFlow.isPush()) {
+                        response = new DataFlowResponseMessage(id, dataFlow.getDataAddress(), initialDataFlow.getState().name(), null);
                     } else {
-                        dataFlow.transitionToPreparing();
-                        response = new DataFlowResponseMessage(id, null, dataFlow.getState().name(), null);
+                        response = new DataFlowResponseMessage(id, null, initialDataFlow.getState().name(), null);
                     }
 
-                    return store.save(dataFlow).map(it -> response);
+                    return store.save(initialDataFlow).map(it -> response);
                 });
     }
 
