@@ -74,7 +74,7 @@ public class ProviderPushTest {
         assertThat(startResponse.dataAddress()).isNull();
 
         await().untilAsserted(() -> {
-            var path = Path.of(destinationDataAddress.endpoint()).resolve("data.txt");
+            var path = Path.of(destinationDataAddress.endpoint());
             assertThat(path).exists().content().isEqualTo("hello world");
 
             var providerStatus = controlPlane.providerStatus(providerProcessId).statusCode(200).extract().as(DataFlowStatusResponseMessage.class);
@@ -98,7 +98,7 @@ public class ProviderPushTest {
             var future = CompletableFuture.runAsync(() -> {
                 try {
                     Thread.sleep(1000L); // simulates async transfer
-                    var destination = Path.of(dataAddress.endpoint()).resolve("data.txt");
+                    var destination = Path.of(dataAddress.endpoint());
                     Files.writeString(destination, "hello world");
                 } catch (IOException | InterruptedException e) {
                     throw new RuntimeException(e);
@@ -127,16 +127,31 @@ public class ProviderPushTest {
         private final Dataplane sdk = Dataplane.newInstance()
                 .id("thisDataplaneId")
                 .onPrepare(this::onPrepare)
+                .onCompleted(this::onCompleted)
                 .build();
 
         private Result<DataFlow> onPrepare(DataFlow dataFlow) {
             try {
-                var destinationFolder = Files.createTempDirectory("consumer-dest");
-                var dataAddress = new DataAddress("FileSystem", "folder", destinationFolder.toString(), emptyList());
+                var destinationFile = Files.createTempDirectory("consumer-dest").resolve(dataFlow.getId() + "-content");
+                var dataAddress = new DataAddress("FileSystem", "file", destinationFile.toString(), emptyList());
 
-                dataFlow.setDataAddress(dataAddress); // TODO: the source data address and the data address tbu by the provider are two different ones!
+                dataFlow.setDataAddress(dataAddress); // TODO: the destination data address and the data address tbu by the provider should be different?
                 dataFlow.transitionToPrepared();
 
+                return Result.success(dataFlow);
+            } catch (IOException e) {
+                return Result.failure(e);
+            }
+        }
+
+        private Result<DataFlow> onCompleted(DataFlow dataFlow) {
+            var dataAddress = dataFlow.getDataAddress();
+            var destination = dataAddress.endpoint();
+
+            try {
+                // simulate file forwarding to another service
+                var destinationPath = Path.of(destination);
+                Files.copy(destinationPath, Files.createTempDirectory("other-service-").resolve(destinationPath.getFileName()));
                 return Result.success(dataFlow);
             } catch (IOException e) {
                 return Result.failure(e);

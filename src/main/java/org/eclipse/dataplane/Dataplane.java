@@ -6,6 +6,7 @@ import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
+import org.eclipse.dataplane.logic.OnCompleted;
 import org.eclipse.dataplane.logic.OnPrepare;
 import org.eclipse.dataplane.logic.OnStart;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
@@ -25,6 +26,7 @@ public class Dataplane {
     private String id;
     private OnPrepare onPrepare = _m -> Result.failure(new UnsupportedOperationException("onPrepare is not implemented"));
     private OnStart onStart = _m -> Result.failure(new UnsupportedOperationException("onStart is not implemented"));
+    private OnCompleted onCompleted = _m -> Result.failure(new UnsupportedOperationException("onCompleted is not implemented"));
 
     public static Builder newInstance() {
         return new Builder();
@@ -89,32 +91,32 @@ public class Dataplane {
      * @param dataFlowId
      */
     public void notifyCompleted(String dataFlowId) {
-            store.findById(dataFlowId)
-                    .map(dataFlow -> {
-                        try {
-                            var endpoint = dataFlow.getCallbackAddress() + "/transfers/" + dataFlow.getId() + "/dataflow/completed";
+        store.findById(dataFlowId)
+                .map(dataFlow -> {
+                    try {
+                        var endpoint = dataFlow.getCallbackAddress() + "/transfers/" + dataFlow.getId() + "/dataflow/completed";
 
-                            var request = HttpRequest.newBuilder()
-                                    .uri(URI.create(endpoint))
-                                    .header("content-type", "application/json")
-                                    .POST(HttpRequest.BodyPublishers.ofString("{}")) // TODO DataFlowCompletedMessage not defined
-                                    .build();
+                        var request = HttpRequest.newBuilder()
+                                .uri(URI.create(endpoint))
+                                .header("content-type", "application/json")
+                                .POST(HttpRequest.BodyPublishers.ofString("{}")) // TODO DataFlowCompletedMessage not defined
+                                .build();
 
-                            var response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding());
+                        var response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding());
 
-                            // TODO: handle failure
-                            // TODO: should this be done asynchronously? retry, and so on...
+                        // TODO: handle failure
+                        // TODO: should this be done asynchronously? retry, and so on...
 
-                            dataFlow.transitionToCompleted();
-                            store.save(dataFlow);
+                        dataFlow.transitionToCompleted();
+                        store.save(dataFlow);
 
-                            // TODO: handle response
-                            return null;
-                        } catch (IOException | InterruptedException e) {
-                            e.printStackTrace();
-                            throw new RuntimeException(e);
-                        }
-                    });
+                        // TODO: handle response
+                        return null;
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     /**
@@ -134,10 +136,11 @@ public class Dataplane {
      * @return
      */
     public Result<Void> completed(String flowId) {
-        return store.findById(flowId).compose(dataFlow -> {
-            dataFlow.transitionToCompleted();
-            return store.save(dataFlow);
-        });
+        return store.findById(flowId).compose(onCompleted::action)
+                .compose(dataFlow -> {
+                    dataFlow.transitionToCompleted();
+                    return store.save(dataFlow);
+                });
     }
 
     public static class Builder {
@@ -160,6 +163,11 @@ public class Dataplane {
 
         public Builder onStart(OnStart onStart) {
             dataplane.onStart = onStart;
+            return this;
+        }
+
+        public Builder onCompleted(OnCompleted onCompleted) {
+            dataplane.onCompleted = onCompleted;
             return this;
         }
 
