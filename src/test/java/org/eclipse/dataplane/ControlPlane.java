@@ -7,6 +7,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartedNotificationMessage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,6 +39,10 @@ public class ControlPlane {
         return consumerClient.prepare(prepareMessage);
     }
 
+    public ValidatableResponse consumerStarted(String dataFlowId, DataFlowStartedNotificationMessage startedNotificationMessage) {
+        return consumerClient.started(dataFlowId, startedNotificationMessage);
+    }
+
     public ValidatableResponse providerStart(DataFlowStartMessage startMessage) {
         return providerClient.start(startMessage);
     }
@@ -52,6 +57,10 @@ public class ControlPlane {
 
     public String providerCallbackAddress() {
         return "http://localhost:%d/provider/control-plane".formatted(httpServer.port());
+    }
+
+    public String consumerCallbackAddress() {
+        return "http://localhost:%d/consumer/control-plane".formatted(httpServer.port());
     }
 
     @Path("/transfers")

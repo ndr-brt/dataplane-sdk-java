@@ -5,10 +5,12 @@ import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowResponseMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartedNotificationMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.logic.OnCompleted;
 import org.eclipse.dataplane.logic.OnPrepare;
 import org.eclipse.dataplane.logic.OnStart;
+import org.eclipse.dataplane.logic.OnStarted;
 import org.eclipse.dataplane.port.DataPlaneSignalingApiController;
 import org.eclipse.dataplane.port.store.DataFlowStore;
 import org.eclipse.dataplane.port.store.InMemoryDataFlowStore;
@@ -26,6 +28,7 @@ public class Dataplane {
     private String id;
     private OnPrepare onPrepare = _m -> Result.failure(new UnsupportedOperationException("onPrepare is not implemented"));
     private OnStart onStart = _m -> Result.failure(new UnsupportedOperationException("onStart is not implemented"));
+    private OnStarted onStarted = _m -> Result.failure(new UnsupportedOperationException("onStarted is not implemented"));;
     private OnCompleted onCompleted = _m -> Result.failure(new UnsupportedOperationException("onCompleted is not implemented"));
 
     public static Builder newInstance() {
@@ -39,7 +42,7 @@ public class Dataplane {
     public Result<DataFlowResponseMessage> prepare(DataFlowPrepareMessage message) {
         var initialDataFlow = DataFlow.newInstance()
                 .id(message.processId())
-                .state(DataFlow.State.PREPARING)
+                .state(DataFlow.State.INITIATING)
                 .dataAddress(message.dataAddress())
                 .callbackAddress(message.callbackAddress())
                 .transferType(message.transferType())
@@ -47,6 +50,10 @@ public class Dataplane {
 
         return onPrepare.action(initialDataFlow)
                 .compose(dataFlow -> {
+                    if (dataFlow.isInitiating()) {
+                        dataFlow.transitionToPrepared();
+                    }
+
                     DataFlowResponseMessage response;
                     if (dataFlow.isPrepared() && dataFlow.isPush()) {
                         response = new DataFlowResponseMessage(id, dataFlow.getDataAddress(), initialDataFlow.getState().name(), null);
@@ -54,7 +61,7 @@ public class Dataplane {
                         response = new DataFlowResponseMessage(id, null, initialDataFlow.getState().name(), null);
                     }
 
-                    return store.save(initialDataFlow).map(it -> response);
+                    return store.save(dataFlow).map(it -> response);
                 });
     }
 
@@ -62,7 +69,7 @@ public class Dataplane {
     public Result<DataFlowResponseMessage> start(DataFlowStartMessage message) {
         var initialDataFlow = DataFlow.newInstance()
                 .id(message.processId())
-                .state(DataFlow.State.STARTING)
+                .state(DataFlow.State.INITIATING)
                 .dataAddress(message.dataAddress())
                 .callbackAddress(message.callbackAddress())
                 .transferType(message.transferType())
@@ -70,6 +77,10 @@ public class Dataplane {
 
         return onStart.action(initialDataFlow)
                 .compose(dataFlow -> {
+                    if (dataFlow.isInitiating()) {
+                        dataFlow.transitionToStarted();
+                    }
+
                     DataFlowResponseMessage response;
                     if (dataFlow.isStarted() && dataFlow.isPull()) {
                         response = new DataFlowResponseMessage(id, dataFlow.getDataAddress(), dataFlow.getState().name(), null);
@@ -129,6 +140,19 @@ public class Dataplane {
         // TODO: implementation
     }
 
+    public Result<Void> started(String flowId, DataFlowStartedNotificationMessage startedNotificationMessage) {
+        return store.findById(flowId)
+                .map(dataFlow -> {
+                    dataFlow.setDataAddress(startedNotificationMessage.dataAddress());
+                    return dataFlow;
+                })
+                .compose(onStarted::action)
+                .compose(dataFlow -> {
+                    dataFlow.transitionToStarted();
+                    return store.save(dataFlow);
+                });
+    }
+
     /**
      * Received notification that the flow has been completed
      *
@@ -156,6 +180,11 @@ public class Dataplane {
             return dataplane;
         }
 
+        public Builder id(String id) {
+            dataplane.id = id;
+            return this;
+        }
+
         public Builder onPrepare(OnPrepare onPrepare) {
             dataplane.onPrepare = onPrepare;
             return this;
@@ -166,13 +195,13 @@ public class Dataplane {
             return this;
         }
 
-        public Builder onCompleted(OnCompleted onCompleted) {
-            dataplane.onCompleted = onCompleted;
+        public Builder onStarted(OnStarted onStarted) {
+            dataplane.onStarted = onStarted;
             return this;
         }
 
-        public Builder id(String id) {
-            dataplane.id = id;
+        public Builder onCompleted(OnCompleted onCompleted) {
+            dataplane.onCompleted = onCompleted;
             return this;
         }
     }

@@ -13,6 +13,7 @@ import org.eclipse.dataplane.Dataplane;
 import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartedNotificationMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStatusResponseMessage;
 import org.eclipse.dataplane.port.exception.DataFlowNotFoundException;
 
@@ -48,6 +49,13 @@ public class DataPlaneSignalingApiController {
             return Response.accepted(response).build();
         }
         return Response.ok(response).build();
+    }
+
+    @POST
+    @Path("/{flowId}/started")
+    public Response started(@PathParam("flowId") String flowId, DataFlowStartedNotificationMessage startedNotificationMessage) {
+        dataplane.started(flowId, startedNotificationMessage).orElseThrow(this::mapToWsRsException);
+        return Response.ok().build();
     }
 
     @POST

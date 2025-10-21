@@ -55,6 +55,10 @@ public class DataFlow {
         return transferType.split("-")[1].equalsIgnoreCase("PUSH");
     }
 
+    public boolean isInitiating() {
+        return state == State.INITIATING;
+    }
+
     public boolean isPrepared() {
         return state == State.PREPARED;
     }

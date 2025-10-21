@@ -1,17 +1,11 @@
 package org.eclipse.dataplane;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import org.eclipse.dataplane.domain.dataflow.DataFlowPrepareMessage;
 import org.eclipse.dataplane.domain.dataflow.DataFlowStartMessage;
+import org.eclipse.dataplane.domain.dataflow.DataFlowStartedNotificationMessage;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.util.Objects;
-import java.util.Random;
-
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static io.restassured.RestAssured.given;
 
 public class DataplaneClient {
@@ -50,14 +44,14 @@ public class DataplaneClient {
                 .log().ifValidationFails();
     }
 
-    private int getFreePort() {
-        var port = new Random().nextInt(16384, 65536);
-        try (var serverSocket = new ServerSocket(port)) {
-            Objects.requireNonNull(serverSocket);
-            return port;
-        } catch (IOException e) {
-            return getFreePort();
-        }
+    public ValidatableResponse started(String dataFlowId, DataFlowStartedNotificationMessage startedNotificationMessage) {
+        return given()
+                .contentType(ContentType.JSON)
+                .baseUri(baseUri)
+                .body(startedNotificationMessage)
+                .post("/v1/dataflows/{id}/started", dataFlowId)
+                .then()
+                .log().ifValidationFails();
     }
 
     public ValidatableResponse completed(String dataFlowId) {
