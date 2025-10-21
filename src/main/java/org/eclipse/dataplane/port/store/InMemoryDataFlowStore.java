@@ -1,7 +1,7 @@
 package org.eclipse.dataplane.port.store;
 
-import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.domain.Result;
+import org.eclipse.dataplane.domain.dataflow.DataFlow;
 import org.eclipse.dataplane.port.exception.DataFlowNotFoundException;
 
 import java.util.HashMap;
@@ -14,7 +14,7 @@ public class InMemoryDataFlowStore implements DataFlowStore {
     @Override
     public Result<Void> save(DataFlow dataFlow) {
         store.put(dataFlow.getId(), dataFlow);
-        return Result.success(null); // TODO: success without parameter
+        return Result.success();
     }
 
     @Override
